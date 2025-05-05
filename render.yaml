@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: work-reminder-alarm
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn web_alarm:app
+    envVars:
+      - key: RENDER
+        value: true
+      - key: PYTHON_VERSION
+        value: 3.11.0 
