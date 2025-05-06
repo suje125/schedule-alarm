@@ -156,10 +156,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const description = document.getElementById('description').value;
         const time = document.getElementById('time').value;
         const date = document.getElementById('date').value;
-        const sound = document.getElementById('sound').value;
         const soundType = document.getElementById('soundType').value;
         const repeatCheckbox = document.getElementById('repeat');
         const repeat = repeatCheckbox ? repeatCheckbox.checked : false;
+        
+        // Get sound value based on sound type
+        let sound = '';
+        if (soundType === 'custom') {
+            const soundSelect = document.getElementById('sound');
+            sound = soundSelect ? soundSelect.value : '';
+        }
         
         const alarm = {
             description,
