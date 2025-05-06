@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
         notification.style.display = 'block';
         setTimeout(() => {
             notification.style.display = 'none';
-        }, 5000); // Increased display time
+        }, 5000);
     }
 
     // Request notification permission
@@ -63,6 +63,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const permission = await Notification.requestPermission();
             if (permission === 'granted') {
                 showNotification('Notifications enabled!');
+            } else {
+                console.warn('Notification permission denied');
             }
         } catch (error) {
             console.error('Error requesting notification permission:', error);
@@ -73,18 +75,21 @@ document.addEventListener('DOMContentLoaded', function() {
     async function registerServiceWorker() {
         try {
             if ('serviceWorker' in navigator) {
-                serviceWorkerRegistration = await navigator.serviceWorker.register('/static/js/sw.js', {
+                serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', {
                     scope: '/'
                 });
-                console.log('Service Worker registered successfully');
+                console.log('ServiceWorker registration successful with scope:', serviceWorkerRegistration.scope);
                 
                 // Listen for service worker messages
                 navigator.serviceWorker.addEventListener('message', (event) => {
+                    console.log('Received message from service worker:', event.data);
                     if (event.data.type === 'ALARM_TRIGGERED') {
                         playAlarmSound();
-                        showNotification(event.data.description);
+                        showNotification(`Alarm: ${event.data.description}`);
                     }
                 });
+            } else {
+                console.warn('Service workers are not supported');
             }
         } catch (error) {
             console.error('Service Worker registration failed:', error);
@@ -146,6 +151,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 time,
                 date,
                 description
+            }).catch(error => {
+                console.error('Failed to send message to service worker:', error);
+                showNotification('Failed to set alarm');
             });
         }
         
