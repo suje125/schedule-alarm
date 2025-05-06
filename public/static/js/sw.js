@@ -15,11 +15,22 @@ self.addEventListener('message', (event) => {
 
         if (delay > 0) {
             setTimeout(() => {
+                // Show notification
                 self.registration.showNotification('Alarm', {
                     body: description,
                     icon: '/static/images/icon.png',
                     vibrate: [200, 100, 200, 100, 200],
                     requireInteraction: true
+                });
+
+                // Send message to all clients
+                self.clients.matchAll().then(clients => {
+                    clients.forEach(client => {
+                        client.postMessage({
+                            type: 'ALARM_TRIGGERED',
+                            description: description
+                        });
+                    });
                 });
             }, delay);
         }

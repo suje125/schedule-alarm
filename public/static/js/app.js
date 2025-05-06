@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         oscillator.type = 'sine';
         oscillator.frequency.value = 800;
-        gainNode.gain.value = 0.1;
+        gainNode.gain.value = 0.5; // Increased volume
         
         return oscillator;
     }
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
         notification.style.display = 'block';
         setTimeout(() => {
             notification.style.display = 'none';
-        }, 3000);
+        }, 5000); // Increased display time
     }
 
     // Request notification permission
@@ -56,11 +56,40 @@ document.addEventListener('DOMContentLoaded', function() {
     // Register service worker
     async function registerServiceWorker() {
         try {
-            serviceWorkerRegistration = await navigator.serviceWorker.register('/static/js/sw.js');
-            console.log('Service Worker registered');
+            if ('serviceWorker' in navigator) {
+                serviceWorkerRegistration = await navigator.serviceWorker.register('/static/js/sw.js', {
+                    scope: '/'
+                });
+                console.log('Service Worker registered successfully');
+                
+                // Listen for service worker messages
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data.type === 'ALARM_TRIGGERED') {
+                        playAlarmSound();
+                        showNotification(event.data.description);
+                    }
+                });
+            }
         } catch (error) {
             console.error('Service Worker registration failed:', error);
         }
+    }
+
+    // Play alarm sound
+    function playAlarmSound() {
+        if (!audioContext) {
+            initAudio();
+        }
+        currentAlarmSound = createBeepSound();
+        currentAlarmSound.start(0);
+        
+        // Stop sound after 10 seconds
+        setTimeout(() => {
+            if (currentAlarmSound) {
+                currentAlarmSound.stop();
+                currentAlarmSound = null;
+            }
+        }, 10000);
     }
 
     // Load existing alarms
@@ -191,22 +220,18 @@ function checkAlarms() {
     alarms.forEach((alarm, index) => {
         if (alarm.active && alarm.date === currentDate && alarm.time === currentTime) {
             // Play sound
-            if (!audioContext) {
-                initAudio();
-            }
-            currentAlarmSound = createBeepSound();
-            currentAlarmSound.start(0);
+            playAlarmSound();
             
             // Show notifications
             showNotification(`Alarm: ${alarm.description}`);
             
-            // Stop sound after 5 seconds
-            setTimeout(() => {
-                if (currentAlarmSound) {
-                    currentAlarmSound.stop();
-                    currentAlarmSound = null;
-                }
-            }, 5000);
+            // Send message to service worker
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'ALARM_TRIGGERED',
+                    description: alarm.description
+                });
+            }
         }
     });
 } 
