@@ -146,15 +146,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Set alarm in service worker
         if (serviceWorkerRegistration && serviceWorkerRegistration.active) {
-            serviceWorkerRegistration.active.postMessage({
-                type: 'SET_ALARM',
-                time,
-                date,
-                description
-            }).catch(error => {
+            try {
+                serviceWorkerRegistration.active.postMessage({
+                    type: 'SET_ALARM',
+                    time,
+                    date,
+                    description
+                });
+            } catch (error) {
                 console.error('Failed to send message to service worker:', error);
                 showNotification('Failed to set alarm');
-            });
+            }
         }
         
         // Reset form

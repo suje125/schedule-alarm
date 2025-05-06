@@ -49,14 +49,16 @@ self.addEventListener('message', (event) => {
                 self.clients.matchAll().then(clients => {
                     console.log('Sending alarm to', clients.length, 'clients');
                     clients.forEach(client => {
-                        client.postMessage({
-                            type: 'ALARM_TRIGGERED',
-                            description: description,
-                            time: time,
-                            date: date
-                        }).catch(error => {
+                        try {
+                            client.postMessage({
+                                type: 'ALARM_TRIGGERED',
+                                description: description,
+                                time: time,
+                                date: date
+                            });
+                        } catch (error) {
                             console.error('Failed to send message to client:', error);
-                        });
+                        }
                     });
                 }).catch(error => {
                     console.error('Failed to get clients:', error);
