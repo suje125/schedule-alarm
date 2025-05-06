@@ -153,59 +153,69 @@ document.addEventListener('DOMContentLoaded', function() {
     alarmForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        const description = document.getElementById('description').value;
-        const time = document.getElementById('time').value;
-        const date = document.getElementById('date').value;
-        const soundType = document.getElementById('soundType').value;
-        const repeatCheckbox = document.getElementById('repeat');
-        const repeat = repeatCheckbox ? repeatCheckbox.checked : false;
-        
-        // Get sound value based on sound type
-        let sound = '';
-        if (soundType === 'custom') {
-            const soundSelect = document.getElementById('sound');
-            sound = soundSelect ? soundSelect.value : '';
-        }
-        
-        const alarm = {
-            description,
-            time,
-            date,
-            sound,
-            soundType,
-            repeat,
-            active: true
-        };
-
-        // Save alarm
-        saveAlarm(alarm);
-        
-        // Set alarm in service worker
-        if (serviceWorkerRegistration && serviceWorkerRegistration.active) {
-            try {
-                serviceWorkerRegistration.active.postMessage({
-                    type: 'SET_ALARM',
-                    time,
-                    date,
-                    description,
-                    soundType,
-                    soundUrl: sound,
-                    repeat
-                });
-            } catch (error) {
-                console.error('Failed to send message to service worker:', error);
-                showNotification('Failed to set alarm');
+        try {
+            const description = document.getElementById('description').value;
+            const time = document.getElementById('time').value;
+            const date = document.getElementById('date').value;
+            const soundType = document.getElementById('soundType').value;
+            const repeatCheckbox = document.getElementById('repeat');
+            const repeat = repeatCheckbox ? repeatCheckbox.checked : false;
+            
+            // Get sound value based on sound type
+            let sound = '';
+            if (soundType === 'custom') {
+                const soundSelect = document.getElementById('sound');
+                if (soundSelect && soundSelect.value) {
+                    sound = soundSelect.value;
+                } else {
+                    showNotification('Please select a custom sound');
+                    return;
+                }
             }
+            
+            const alarm = {
+                description,
+                time,
+                date,
+                sound,
+                soundType,
+                repeat,
+                active: true
+            };
+
+            // Save alarm
+            saveAlarm(alarm);
+            
+            // Set alarm in service worker
+            if (serviceWorkerRegistration && serviceWorkerRegistration.active) {
+                try {
+                    serviceWorkerRegistration.active.postMessage({
+                        type: 'SET_ALARM',
+                        time,
+                        date,
+                        description,
+                        soundType,
+                        soundUrl: sound,
+                        repeat
+                    });
+                } catch (error) {
+                    console.error('Failed to send message to service worker:', error);
+                    showNotification('Failed to set alarm');
+                }
+            }
+            
+            // Reset form
+            alarmForm.reset();
+            
+            // Show notification
+            showNotification('Alarm added successfully!');
+            
+            // Reload alarms
+            loadAlarms();
+        } catch (error) {
+            console.error('Error setting alarm:', error);
+            showNotification('Error setting alarm. Please try again.');
         }
-        
-        // Reset form
-        alarmForm.reset();
-        
-        // Show notification
-        showNotification('Alarm added successfully!');
-        
-        // Reload alarms
-        loadAlarms();
     });
 
     // Handle sound file upload
