@@ -154,6 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         
         try {
+            // Get form values
             const description = document.getElementById('description').value;
             const time = document.getElementById('time').value;
             const date = document.getElementById('date').value;
@@ -161,18 +162,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const repeatCheckbox = document.getElementById('repeat');
             const repeat = repeatCheckbox ? repeatCheckbox.checked : false;
             
-            // Get sound value based on sound type
+            // Validate required fields
+            if (!description || !time || !date) {
+                showNotification('Please fill in all required fields');
+                return;
+            }
+            
+            // Handle sound based on type
             let sound = '';
             if (soundType === 'custom') {
                 const soundSelect = document.getElementById('sound');
-                if (soundSelect && soundSelect.value) {
-                    sound = soundSelect.value;
-                } else {
+                if (!soundSelect || !soundSelect.value) {
                     showNotification('Please select a custom sound');
                     return;
                 }
+                sound = soundSelect.value;
             }
             
+            // Create alarm object
             const alarm = {
                 description,
                 time,
@@ -224,11 +231,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (file) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                const soundOption = document.createElement('option');
-                soundOption.value = e.target.result;
-                soundOption.textContent = file.name;
-                document.getElementById('sound').appendChild(soundOption);
-                showNotification('Sound file added to options!');
+                const soundSelect = document.getElementById('sound');
+                if (soundSelect) {
+                    const soundOption = document.createElement('option');
+                    soundOption.value = e.target.result;
+                    soundOption.textContent = file.name;
+                    soundSelect.appendChild(soundOption);
+                    showNotification('Sound file added to options!');
+                }
             };
             reader.readAsDataURL(file);
         }
