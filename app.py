@@ -46,6 +46,7 @@ def app_page():
 def service_worker():
     response = send_from_directory('public/static/js', 'sw.js')
     response.headers['Service-Worker-Allowed'] = '/'
+    response.headers['Content-Type'] = 'application/javascript'
     return response
 
 @app.route('/api/alarms', methods=['GET'])

@@ -15,10 +15,10 @@
                     scope: '/'
                 })
                 .then(registration => {
-                    console.log('ServiceWorker registration successful');
+                    console.log('ServiceWorker registration successful with scope:', registration.scope);
                 })
                 .catch(err => {
-                    console.log('ServiceWorker registration failed: ', err);
+                    console.error('ServiceWorker registration failed:', err);
                 });
             });
         }
