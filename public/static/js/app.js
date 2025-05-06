@@ -8,18 +8,21 @@ function domReady(callback) {
 }
 
 // Function to get element with retry
-function getElementWithRetry(id, maxRetries = 5, delay = 100) {
+function getElementWithRetry(id, maxRetries = 10, delay = 200) {
     return new Promise((resolve) => {
         let retries = 0;
         
         function tryGetElement() {
             const element = document.getElementById(id);
             if (element) {
+                console.log(`Found element: ${id}`);
                 resolve(element);
             } else if (retries < maxRetries) {
                 retries++;
+                console.log(`Retry ${retries} for element: ${id}`);
                 setTimeout(tryGetElement, delay);
             } else {
+                console.error(`Element with id '${id}' not found after ${maxRetries} retries`);
                 resolve(null);
             }
         }
@@ -28,29 +31,127 @@ function getElementWithRetry(id, maxRetries = 5, delay = 100) {
     });
 }
 
+// Function to wait for an element to be available
+function waitForElement(id, maxAttempts = 50, interval = 100) {
+    return new Promise((resolve, reject) => {
+        let attempts = 0;
+        
+        function checkElement() {
+            const element = document.getElementById(id);
+            if (element) {
+                console.log(`Found element: ${id}`);
+                resolve(element);
+            } else if (attempts < maxAttempts) {
+                attempts++;
+                console.log(`Attempt ${attempts} to find element: ${id}`);
+                setTimeout(checkElement, interval);
+            } else {
+                console.error(`Failed to find element: ${id}`);
+                reject(new Error(`Element ${id} not found`));
+            }
+        }
+        
+        checkElement();
+    });
+}
+
+// Function to get or create an element
+function getOrCreateElement(id, type = 'div') {
+    let element = document.getElementById(id);
+    if (!element) {
+        console.log(`Creating missing element: ${id}`);
+        element = document.createElement(type);
+        element.id = id;
+        document.body.appendChild(element);
+    }
+    return element;
+}
+
 // Main initialization function
 async function initializeApp() {
     try {
-        // Get all required elements with retry
+        console.log('Starting app initialization...');
+        
+        // Get or create all required elements
         const elements = {
-            alarmForm: await getElementWithRetry('alarmForm'),
-            alarmsList: await getElementWithRetry('alarmsList'),
-            soundTypeSelect: await getElementWithRetry('soundType'),
-            customSoundContainer: await getElementWithRetry('customSoundContainer'),
-            soundSelect: await getElementWithRetry('sound'),
-            soundFileInput: await getElementWithRetry('soundFile')
+            alarmForm: getOrCreateElement('alarmForm', 'form'),
+            alarmsList: getOrCreateElement('alarmsList', 'div'),
+            soundTypeSelect: getOrCreateElement('soundType', 'select'),
+            customSoundContainer: getOrCreateElement('customSoundContainer', 'div'),
+            soundSelect: getOrCreateElement('sound', 'select'),
+            soundFileInput: getOrCreateElement('soundFile', 'input'),
+            description: getOrCreateElement('description', 'input'),
+            date: getOrCreateElement('date', 'input'),
+            time: getOrCreateElement('time', 'input'),
+            repeat: getOrCreateElement('repeat', 'input')
         };
 
-        // Check if all elements exist
-        const missingElements = Object.entries(elements)
-            .filter(([_, element]) => !element)
-            .map(([name]) => name);
-
-        if (missingElements.length > 0) {
-            console.error('Missing elements:', missingElements);
-            alert('Some required elements are missing. Please refresh the page.');
-            return;
+        // Set up form structure if it was created
+        if (!document.getElementById('alarmForm')) {
+            elements.alarmForm.innerHTML = `
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <input type="text" class="form-control" id="description" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="date" class="form-label">Date</label>
+                    <input type="date" class="form-control" id="date" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="time" class="form-label">Time</label>
+                    <input type="time" class="form-control" id="time" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="soundType" class="form-label">Sound Type</label>
+                    <select class="form-select" id="soundType" required>
+                        <option value="normal">Normal Beep</option>
+                        <option value="deep">Deep Beep</option>
+                        <option value="custom">Custom Sound</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3" id="customSoundContainer" style="display: none;">
+                    <label for="sound" class="form-label">Custom Sound</label>
+                    <select class="form-select" id="sound">
+                        <option value="">Select a sound</option>
+                    </select>
+                    <input type="file" class="form-control mt-2" id="soundFile" accept="audio/*">
+                </div>
+                
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="repeat">
+                    <label class="form-check-label" for="repeat">Repeat every 2 hours</label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Set Alarm</button>
+            `;
         }
+
+        // Set up input types and attributes
+        elements.description.type = 'text';
+        elements.date.type = 'date';
+        elements.time.type = 'time';
+        elements.repeat.type = 'checkbox';
+        elements.soundFileInput.type = 'file';
+        elements.soundFileInput.accept = 'audio/*';
+
+        // Set up select options if they were created
+        if (!elements.soundTypeSelect.options.length) {
+            elements.soundTypeSelect.innerHTML = `
+                <option value="normal">Normal Beep</option>
+                <option value="deep">Deep Beep</option>
+                <option value="custom">Custom Sound</option>
+            `;
+        }
+
+        if (!elements.soundSelect.options.length) {
+            elements.soundSelect.innerHTML = '<option value="">Select a sound</option>';
+        }
+
+        console.log('All elements ready, continuing initialization...');
 
         // Initialize variables
         let audioContext = null;
@@ -245,11 +346,11 @@ async function initializeApp() {
         elements.alarmForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const description = document.getElementById('description').value;
-            const date = document.getElementById('date').value;
-            const time = document.getElementById('time').value;
+            const description = elements.description.value;
+            const date = elements.date.value;
+            const time = elements.time.value;
             const soundType = elements.soundTypeSelect.value;
-            const repeat = document.getElementById('repeat').checked;
+            const repeat = elements.repeat.checked;
             
             if (!description || !date || !time) {
                 alert('Please fill in all required fields');
