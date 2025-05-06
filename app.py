@@ -10,8 +10,9 @@ from whitenoise import WhiteNoise
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__, 
-    template_folder=os.path.join(BASE_DIR, 'public/templates'),
-    static_folder=os.path.join(BASE_DIR, 'public/static')
+    static_url_path='/static',
+    static_folder=os.path.join(BASE_DIR, 'public/static'),
+    template_folder=os.path.join(BASE_DIR, 'public/templates')
 )
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.wsgi_app = WhiteNoise(app.wsgi_app, root=os.path.join(BASE_DIR, 'public/static'))
