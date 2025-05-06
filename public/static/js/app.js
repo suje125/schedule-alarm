@@ -1,274 +1,288 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const alarmForm = document.getElementById('alarmForm');
-    const alarmsList = document.getElementById('alarmsList');
-    let audioContext = null;
-    let currentAlarmSound = null;
-    let serviceWorkerRegistration;
-    let repeatInterval = null;
+    // Wait for DOM to be fully loaded
+    setTimeout(function() {
+        const alarmForm = document.getElementById('alarmForm');
+        const alarmsList = document.getElementById('alarmsList');
 
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    document.body.appendChild(notification);
+        if (!alarmForm) {
+            console.error('Alarm form not found. Please refresh the page.');
+            return;
+        }
 
-    // Initialize audio context
-    function initAudio() {
-        try {
+        if (!alarmsList) {
+            console.error('Alarms list not found. Please refresh the page.');
+            return;
+        }
+
+        let audioContext = null;
+        let currentAlarmSound = null;
+        let serviceWorkerRegistration;
+        let repeatInterval = null;
+
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        document.body.appendChild(notification);
+
+        // Initialize audio context
+        function initAudio() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                return true;
+            } catch (error) {
+                console.error('Failed to initialize audio:', error);
+                showNotification('Audio not supported in this browser');
+                return false;
+            }
+        }
+
+        // Create a sound based on type
+        function createSound(type, soundUrl) {
             if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (!initAudio()) return null;
             }
-            return true;
-        } catch (error) {
-            console.error('Failed to initialize audio:', error);
-            showNotification('Audio not supported in this browser');
-            return false;
-        }
-    }
-
-    // Create a sound based on type
-    function createSound(type, soundUrl) {
-        if (!audioContext) {
-            if (!initAudio()) return null;
-        }
-        
-        try {
-            if (type === 'custom' && soundUrl) {
-                // For custom sounds
-                const audio = new Audio(soundUrl);
-                return audio;
-            } else {
-                // For built-in sounds
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.type = 'sine';
-                // Set frequency based on type
-                oscillator.frequency.value = type === 'deep' ? 200 : 800;
-                gainNode.gain.value = 0.5;
-                
-                return oscillator;
-            }
-        } catch (error) {
-            console.error('Failed to create sound:', error);
-            return null;
-        }
-    }
-
-    // Play alarm sound
-    function playAlarmSound(soundType, soundUrl) {
-        if (!audioContext) {
-            if (!initAudio()) return;
-        }
-        
-        try {
-            currentAlarmSound = createSound(soundType, soundUrl);
-            if (currentAlarmSound) {
-                if (soundType === 'custom') {
-                    // For Audio objects
-                    currentAlarmSound.loop = true;
-                    currentAlarmSound.play();
-                    
-                    // Stop sound after 10 seconds
-                    setTimeout(() => {
-                        if (currentAlarmSound) {
-                            currentAlarmSound.pause();
-                            currentAlarmSound.currentTime = 0;
-                            currentAlarmSound = null;
-                        }
-                    }, 10000);
+            
+            try {
+                if (type === 'custom' && soundUrl) {
+                    // For custom sounds
+                    const audio = new Audio(soundUrl);
+                    return audio;
                 } else {
-                    // For oscillator
-                    currentAlarmSound.start(0);
+                    // For built-in sounds
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
                     
-                    // Stop sound after 10 seconds
-                    setTimeout(() => {
-                        if (currentAlarmSound) {
-                            currentAlarmSound.stop();
-                            currentAlarmSound = null;
-                        }
-                    }, 10000);
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.type = 'sine';
+                    // Set frequency based on type
+                    oscillator.frequency.value = type === 'deep' ? 200 : 800;
+                    gainNode.gain.value = 0.5;
+                    
+                    return oscillator;
                 }
+            } catch (error) {
+                console.error('Failed to create sound:', error);
+                return null;
             }
-        } catch (error) {
-            console.error('Failed to play alarm sound:', error);
-            showNotification('Failed to play alarm sound');
         }
-    }
 
-    // Show notification
-    function showNotification(message) {
-        notification.textContent = message;
-        notification.style.display = 'block';
-        setTimeout(() => {
-            notification.style.display = 'none';
-        }, 5000);
-    }
-
-    // Request notification permission
-    async function requestNotificationPermission() {
-        try {
-            const permission = await Notification.requestPermission();
-            if (permission === 'granted') {
-                showNotification('Notifications enabled!');
-            } else {
-                console.warn('Notification permission denied');
+        // Play alarm sound
+        function playAlarmSound(soundType, soundUrl) {
+            if (!audioContext) {
+                if (!initAudio()) return;
             }
-        } catch (error) {
-            console.error('Error requesting notification permission:', error);
-        }
-    }
-
-    // Register service worker
-    async function registerServiceWorker() {
-        try {
-            if ('serviceWorker' in navigator) {
-                serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', {
-                    scope: '/'
-                });
-                console.log('ServiceWorker registration successful with scope:', serviceWorkerRegistration.scope);
-                
-                // Listen for service worker messages
-                navigator.serviceWorker.addEventListener('message', (event) => {
-                    console.log('Received message from service worker:', event.data);
-                    if (event.data.type === 'ALARM_TRIGGERED') {
-                        playAlarmSound(event.data.soundType, event.data.soundUrl);
-                        showNotification(`Alarm: ${event.data.description}`);
+            
+            try {
+                currentAlarmSound = createSound(soundType, soundUrl);
+                if (currentAlarmSound) {
+                    if (soundType === 'custom') {
+                        // For Audio objects
+                        currentAlarmSound.loop = true;
+                        currentAlarmSound.play();
+                        
+                        // Stop sound after 10 seconds
+                        setTimeout(() => {
+                            if (currentAlarmSound) {
+                                currentAlarmSound.pause();
+                                currentAlarmSound.currentTime = 0;
+                                currentAlarmSound = null;
+                            }
+                        }, 10000);
+                    } else {
+                        // For oscillator
+                        currentAlarmSound.start(0);
+                        
+                        // Stop sound after 10 seconds
+                        setTimeout(() => {
+                            if (currentAlarmSound) {
+                                currentAlarmSound.stop();
+                                currentAlarmSound = null;
+                            }
+                        }, 10000);
                     }
-                });
-            } else {
-                console.warn('Service workers are not supported');
+                }
+            } catch (error) {
+                console.error('Failed to play alarm sound:', error);
+                showNotification('Failed to play alarm sound');
             }
-        } catch (error) {
-            console.error('Service Worker registration failed:', error);
         }
-    }
 
-    // Load existing alarms
-    loadAlarms();
+        // Show notification
+        function showNotification(message) {
+            notification.textContent = message;
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 5000);
+        }
 
-    // Handle form submission
-    alarmForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        try {
-            // Get form values with null checks
-            const descriptionInput = document.getElementById('description');
-            const timeInput = document.getElementById('time');
-            const dateInput = document.getElementById('date');
-            const soundTypeInput = document.getElementById('soundType');
-            const repeatCheckbox = document.getElementById('repeat');
-
-            if (!descriptionInput || !timeInput || !dateInput || !soundTypeInput) {
-                showNotification('Form elements not found. Please refresh the page.');
-                return;
-            }
-
-            const description = descriptionInput.value;
-            const time = timeInput.value;
-            const date = dateInput.value;
-            const soundType = soundTypeInput.value;
-            const repeat = repeatCheckbox ? repeatCheckbox.checked : false;
-            
-            // Validate required fields
-            if (!description || !time || !date) {
-                showNotification('Please fill in all required fields');
-                return;
-            }
-            
-            // Handle sound based on type
-            let sound = '';
-            if (soundType === 'custom') {
-                const soundSelect = document.getElementById('sound');
-                if (!soundSelect) {
-                    showNotification('Sound selection not available. Please refresh the page.');
-                    return;
+        // Request notification permission
+        async function requestNotificationPermission() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    showNotification('Notifications enabled!');
+                } else {
+                    console.warn('Notification permission denied');
                 }
-                if (!soundSelect.value) {
-                    showNotification('Please select a custom sound');
-                    return;
-                }
-                sound = soundSelect.value;
+            } catch (error) {
+                console.error('Error requesting notification permission:', error);
             }
-            
-            // Create alarm object
-            const alarm = {
-                description,
-                time,
-                date,
-                sound,
-                soundType,
-                repeat,
-                active: true
-            };
+        }
 
-            // Save alarm
-            saveAlarm(alarm);
-            
-            // Set alarm in service worker
-            if (serviceWorkerRegistration && serviceWorkerRegistration.active) {
-                try {
-                    serviceWorkerRegistration.active.postMessage({
-                        type: 'SET_ALARM',
-                        time,
-                        date,
-                        description,
-                        soundType,
-                        soundUrl: sound,
-                        repeat
+        // Register service worker
+        async function registerServiceWorker() {
+            try {
+                if ('serviceWorker' in navigator) {
+                    serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', {
+                        scope: '/'
                     });
-                } catch (error) {
-                    console.error('Failed to send message to service worker:', error);
-                    showNotification('Failed to set alarm');
+                    console.log('ServiceWorker registration successful with scope:', serviceWorkerRegistration.scope);
+                    
+                    // Listen for service worker messages
+                    navigator.serviceWorker.addEventListener('message', (event) => {
+                        console.log('Received message from service worker:', event.data);
+                        if (event.data.type === 'ALARM_TRIGGERED') {
+                            playAlarmSound(event.data.soundType, event.data.soundUrl);
+                            showNotification(`Alarm: ${event.data.description}`);
+                        }
+                    });
+                } else {
+                    console.warn('Service workers are not supported');
                 }
+            } catch (error) {
+                console.error('Service Worker registration failed:', error);
             }
-            
-            // Reset form
-            alarmForm.reset();
-            
-            // Show notification
-            showNotification('Alarm added successfully!');
-            
-            // Reload alarms
-            loadAlarms();
-        } catch (error) {
-            console.error('Error setting alarm:', error);
-            showNotification('Error setting alarm. Please try again.');
         }
-    });
 
-    // Handle sound file upload
-    const soundFileInput = document.getElementById('soundFile');
-    if (soundFileInput) {
-        soundFileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
+        // Load existing alarms
+        loadAlarms();
+
+        // Handle form submission
+        alarmForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            try {
+                // Get form values with null checks
+                const descriptionInput = document.getElementById('description');
+                const timeInput = document.getElementById('time');
+                const dateInput = document.getElementById('date');
+                const soundTypeInput = document.getElementById('soundType');
+                const repeatCheckbox = document.getElementById('repeat');
+
+                if (!descriptionInput || !timeInput || !dateInput || !soundTypeInput) {
+                    showNotification('Form elements not found. Please refresh the page.');
+                    return;
+                }
+
+                const description = descriptionInput.value;
+                const time = timeInput.value;
+                const date = dateInput.value;
+                const soundType = soundTypeInput.value;
+                const repeat = repeatCheckbox ? repeatCheckbox.checked : false;
+                
+                // Validate required fields
+                if (!description || !time || !date) {
+                    showNotification('Please fill in all required fields');
+                    return;
+                }
+                
+                // Handle sound based on type
+                let sound = '';
+                if (soundType === 'custom') {
                     const soundSelect = document.getElementById('sound');
-                    if (soundSelect) {
-                        const soundOption = document.createElement('option');
-                        soundOption.value = e.target.result;
-                        soundOption.textContent = file.name;
-                        soundSelect.appendChild(soundOption);
-                        showNotification('Sound file added to options!');
+                    if (!soundSelect) {
+                        showNotification('Sound selection not available. Please refresh the page.');
+                        return;
                     }
+                    if (!soundSelect.value) {
+                        showNotification('Please select a custom sound');
+                        return;
+                    }
+                    sound = soundSelect.value;
+                }
+                
+                // Create alarm object
+                const alarm = {
+                    description,
+                    time,
+                    date,
+                    sound,
+                    soundType,
+                    repeat,
+                    active: true
                 };
-                reader.readAsDataURL(file);
+
+                // Save alarm
+                saveAlarm(alarm);
+                
+                // Set alarm in service worker
+                if (serviceWorkerRegistration && serviceWorkerRegistration.active) {
+                    try {
+                        serviceWorkerRegistration.active.postMessage({
+                            type: 'SET_ALARM',
+                            time,
+                            date,
+                            description,
+                            soundType,
+                            soundUrl: sound,
+                            repeat
+                        });
+                    } catch (error) {
+                        console.error('Failed to send message to service worker:', error);
+                        showNotification('Failed to set alarm');
+                    }
+                }
+                
+                // Reset form
+                alarmForm.reset();
+                
+                // Show notification
+                showNotification('Alarm added successfully!');
+                
+                // Reload alarms
+                loadAlarms();
+            } catch (error) {
+                console.error('Error setting alarm:', error);
+                showNotification('Error setting alarm. Please try again.');
             }
         });
-    }
 
-    // Check alarms every minute
-    setInterval(checkAlarms, 60000);
-    // Initial check
-    checkAlarms();
-    // Request notification permission
-    requestNotificationPermission();
-    // Register service worker
-    registerServiceWorker();
+        // Handle sound file upload
+        const soundFileInput = document.getElementById('soundFile');
+        if (soundFileInput) {
+            soundFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const soundSelect = document.getElementById('sound');
+                        if (soundSelect) {
+                            const soundOption = document.createElement('option');
+                            soundOption.value = e.target.result;
+                            soundOption.textContent = file.name;
+                            soundSelect.appendChild(soundOption);
+                            showNotification('Sound file added to options!');
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // Check alarms every minute
+        setInterval(checkAlarms, 60000);
+        // Initial check
+        checkAlarms();
+        // Request notification permission
+        requestNotificationPermission();
+        // Register service worker
+        registerServiceWorker();
+    }, 100); // Small delay to ensure DOM is fully loaded
 });
 
 function saveAlarm(alarm) {
