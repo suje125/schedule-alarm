@@ -3,10 +3,18 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from datetime import datetime
 import json
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from whitenoise import WhiteNoise
 
-app = Flask(__name__, static_folder='public/static', template_folder='public/templates')
-app.wsgi_app = WhiteNoise(app.wsgi_app, root='public/static/')
+# Get the absolute path to the project root
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__, 
+    template_folder=os.path.join(BASE_DIR, 'public/templates'),
+    static_folder=os.path.join(BASE_DIR, 'public/static')
+)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=os.path.join(BASE_DIR, 'public/static'))
 
 # Configure upload folder
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public/static/sounds')
@@ -31,7 +39,7 @@ def index():
     return render_template('index.html')
 
 @app.route('/app')
-def app_route():
+def app_page():
     return render_template('app.html')
 
 @app.route('/api/alarms', methods=['GET'])
