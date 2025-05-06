@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const alarmsList = document.getElementById('alarmsList');
     let audioContext;
     let currentAlarmSound = null;
+    let serviceWorkerRegistration;
 
     // Create notification element
     const notification = document.createElement('div');
@@ -52,13 +53,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Show browser notification
-    function showBrowserNotification(title, body) {
-        if (Notification.permission === 'granted') {
-            new Notification(title, {
-                body: body,
-                icon: '/static/images/icon.png'
-            });
+    // Register service worker
+    async function registerServiceWorker() {
+        try {
+            serviceWorkerRegistration = await navigator.serviceWorker.register('/static/js/sw.js');
+            console.log('Service Worker registered');
+        } catch (error) {
+            console.error('Service Worker registration failed:', error);
         }
     }
 
@@ -85,12 +86,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Save alarm
         saveAlarm(alarm);
         
+        // Set alarm in service worker
+        if (serviceWorkerRegistration && serviceWorkerRegistration.active) {
+            serviceWorkerRegistration.active.postMessage({
+                type: 'SET_ALARM',
+                time,
+                date,
+                description
+            });
+        }
+        
         // Reset form
         alarmForm.reset();
         
         // Show notification
         showNotification('Alarm added successfully!');
-        showBrowserNotification('Alarm Added', `Alarm set for ${date} at ${time}`);
         
         // Reload alarms
         loadAlarms();
@@ -118,6 +128,8 @@ document.addEventListener('DOMContentLoaded', function() {
     checkAlarms();
     // Request notification permission
     requestNotificationPermission();
+    // Register service worker
+    registerServiceWorker();
 });
 
 function saveAlarm(alarm) {
@@ -187,7 +199,6 @@ function checkAlarms() {
             
             // Show notifications
             showNotification(`Alarm: ${alarm.description}`);
-            showBrowserNotification('Alarm', alarm.description);
             
             // Stop sound after 5 seconds
             setTimeout(() => {
