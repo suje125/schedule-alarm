@@ -154,12 +154,22 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         
         try {
-            // Get form values
-            const description = document.getElementById('description').value;
-            const time = document.getElementById('time').value;
-            const date = document.getElementById('date').value;
-            const soundType = document.getElementById('soundType').value;
+            // Get form values with null checks
+            const descriptionInput = document.getElementById('description');
+            const timeInput = document.getElementById('time');
+            const dateInput = document.getElementById('date');
+            const soundTypeInput = document.getElementById('soundType');
             const repeatCheckbox = document.getElementById('repeat');
+
+            if (!descriptionInput || !timeInput || !dateInput || !soundTypeInput) {
+                showNotification('Form elements not found. Please refresh the page.');
+                return;
+            }
+
+            const description = descriptionInput.value;
+            const time = timeInput.value;
+            const date = dateInput.value;
+            const soundType = soundTypeInput.value;
             const repeat = repeatCheckbox ? repeatCheckbox.checked : false;
             
             // Validate required fields
@@ -172,7 +182,11 @@ document.addEventListener('DOMContentLoaded', function() {
             let sound = '';
             if (soundType === 'custom') {
                 const soundSelect = document.getElementById('sound');
-                if (!soundSelect || !soundSelect.value) {
+                if (!soundSelect) {
+                    showNotification('Sound selection not available. Please refresh the page.');
+                    return;
+                }
+                if (!soundSelect.value) {
                     showNotification('Please select a custom sound');
                     return;
                 }
@@ -226,23 +240,26 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Handle sound file upload
-    document.getElementById('soundFile').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const soundSelect = document.getElementById('sound');
-                if (soundSelect) {
-                    const soundOption = document.createElement('option');
-                    soundOption.value = e.target.result;
-                    soundOption.textContent = file.name;
-                    soundSelect.appendChild(soundOption);
-                    showNotification('Sound file added to options!');
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    });
+    const soundFileInput = document.getElementById('soundFile');
+    if (soundFileInput) {
+        soundFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const soundSelect = document.getElementById('sound');
+                    if (soundSelect) {
+                        const soundOption = document.createElement('option');
+                        soundOption.value = e.target.result;
+                        soundOption.textContent = file.name;
+                        soundSelect.appendChild(soundOption);
+                        showNotification('Sound file added to options!');
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
 
     // Check alarms every minute
     setInterval(checkAlarms, 60000);
