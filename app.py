@@ -42,6 +42,12 @@ def index():
 def app_page():
     return render_template('app.html', now=datetime.now())
 
+@app.route('/sw.js')
+def service_worker():
+    response = send_from_directory('public/static/js', 'sw.js')
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
+
 @app.route('/api/alarms', methods=['GET'])
 def get_alarms():
     try:
