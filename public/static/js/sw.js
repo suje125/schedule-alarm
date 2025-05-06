@@ -17,11 +17,14 @@ self.addEventListener('activate', (event) => {
     );
 });
 
+// Store active alarms
+const activeAlarms = new Map();
+
 self.addEventListener('message', (event) => {
     console.log('Service Worker received message:', event.data);
     
     if (event.data.type === 'SET_ALARM') {
-        const { time, date, description } = event.data;
+        const { time, date, description, soundType, soundUrl, repeat } = event.data;
         console.log('Setting alarm for:', date, time, description);
         
         const alarmTime = new Date(`${date}T${time}`);
@@ -31,7 +34,14 @@ self.addEventListener('message', (event) => {
         if (delay > 0) {
             console.log('Alarm will trigger in:', delay, 'ms');
             
-            setTimeout(() => {
+            const alarmId = `${date}-${time}-${description}`;
+            
+            // Clear any existing alarm with same ID
+            if (activeAlarms.has(alarmId)) {
+                clearTimeout(activeAlarms.get(alarmId));
+            }
+            
+            const triggerAlarm = () => {
                 console.log('Alarm triggered!');
                 
                 // Show notification
@@ -54,7 +64,9 @@ self.addEventListener('message', (event) => {
                                 type: 'ALARM_TRIGGERED',
                                 description: description,
                                 time: time,
-                                date: date
+                                date: date,
+                                soundType: soundType,
+                                soundUrl: soundUrl
                             });
                         } catch (error) {
                             console.error('Failed to send message to client:', error);
@@ -63,7 +75,22 @@ self.addEventListener('message', (event) => {
                 }).catch(error => {
                     console.error('Failed to get clients:', error);
                 });
-            }, delay);
+                
+                // If repeating, set next alarm
+                if (repeat) {
+                    const nextAlarmTime = new Date(alarmTime.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
+                    const nextDelay = nextAlarmTime - new Date();
+                    
+                    if (nextDelay > 0) {
+                        console.log('Setting next alarm in 2 hours');
+                        const timeoutId = setTimeout(triggerAlarm, nextDelay);
+                        activeAlarms.set(alarmId, timeoutId);
+                    }
+                }
+            };
+            
+            const timeoutId = setTimeout(triggerAlarm, delay);
+            activeAlarms.set(alarmId, timeoutId);
         } else {
             console.log('Alarm time is in the past');
         }

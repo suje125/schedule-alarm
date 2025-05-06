@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let audioContext = null;
     let currentAlarmSound = null;
     let serviceWorkerRegistration;
+    let repeatInterval = null;
 
     // Create notification element
     const notification = document.createElement('div');
@@ -24,27 +25,76 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Create a simple beep sound
-    function createBeepSound() {
+    // Create a sound based on type
+    function createSound(type, soundUrl) {
         if (!audioContext) {
             if (!initAudio()) return null;
         }
         
         try {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.type = 'sine';
-            oscillator.frequency.value = 800;
-            gainNode.gain.value = 0.5;
-            
-            return oscillator;
+            if (type === 'custom' && soundUrl) {
+                // For custom sounds
+                const audio = new Audio(soundUrl);
+                return audio;
+            } else {
+                // For built-in sounds
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.type = 'sine';
+                // Set frequency based on type
+                oscillator.frequency.value = type === 'deep' ? 200 : 800;
+                gainNode.gain.value = 0.5;
+                
+                return oscillator;
+            }
         } catch (error) {
-            console.error('Failed to create beep sound:', error);
+            console.error('Failed to create sound:', error);
             return null;
+        }
+    }
+
+    // Play alarm sound
+    function playAlarmSound(soundType, soundUrl) {
+        if (!audioContext) {
+            if (!initAudio()) return;
+        }
+        
+        try {
+            currentAlarmSound = createSound(soundType, soundUrl);
+            if (currentAlarmSound) {
+                if (soundType === 'custom') {
+                    // For Audio objects
+                    currentAlarmSound.loop = true;
+                    currentAlarmSound.play();
+                    
+                    // Stop sound after 10 seconds
+                    setTimeout(() => {
+                        if (currentAlarmSound) {
+                            currentAlarmSound.pause();
+                            currentAlarmSound.currentTime = 0;
+                            currentAlarmSound = null;
+                        }
+                    }, 10000);
+                } else {
+                    // For oscillator
+                    currentAlarmSound.start(0);
+                    
+                    // Stop sound after 10 seconds
+                    setTimeout(() => {
+                        if (currentAlarmSound) {
+                            currentAlarmSound.stop();
+                            currentAlarmSound = null;
+                        }
+                    }, 10000);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to play alarm sound:', error);
+            showNotification('Failed to play alarm sound');
         }
     }
 
@@ -84,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 navigator.serviceWorker.addEventListener('message', (event) => {
                     console.log('Received message from service worker:', event.data);
                     if (event.data.type === 'ALARM_TRIGGERED') {
-                        playAlarmSound();
+                        playAlarmSound(event.data.soundType, event.data.soundUrl);
                         showNotification(`Alarm: ${event.data.description}`);
                     }
                 });
@@ -93,31 +143,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('Service Worker registration failed:', error);
-        }
-    }
-
-    // Play alarm sound
-    function playAlarmSound() {
-        if (!audioContext) {
-            if (!initAudio()) return;
-        }
-        
-        try {
-            currentAlarmSound = createBeepSound();
-            if (currentAlarmSound) {
-                currentAlarmSound.start(0);
-                
-                // Stop sound after 10 seconds
-                setTimeout(() => {
-                    if (currentAlarmSound) {
-                        currentAlarmSound.stop();
-                        currentAlarmSound = null;
-                    }
-                }, 10000);
-            }
-        } catch (error) {
-            console.error('Failed to play alarm sound:', error);
-            showNotification('Failed to play alarm sound');
         }
     }
 
@@ -132,12 +157,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const time = document.getElementById('time').value;
         const date = document.getElementById('date').value;
         const sound = document.getElementById('sound').value;
+        const repeat = document.getElementById('repeat').checked;
+        const soundType = document.getElementById('soundType').value;
         
         const alarm = {
             description,
             time,
             date,
             sound,
+            soundType,
+            repeat,
             active: true
         };
 
@@ -151,7 +180,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     type: 'SET_ALARM',
                     time,
                     date,
-                    description
+                    description,
+                    soundType,
+                    soundUrl: sound,
+                    repeat
                 });
             } catch (error) {
                 console.error('Failed to send message to service worker:', error);
@@ -254,7 +286,7 @@ function checkAlarms() {
     alarms.forEach((alarm, index) => {
         if (alarm.active && alarm.date === currentDate && alarm.time === currentTime) {
             // Play sound
-            playAlarmSound();
+            playAlarmSound(alarm.soundType, alarm.sound);
             
             // Show notifications
             showNotification(`Alarm: ${alarm.description}`);
@@ -263,7 +295,9 @@ function checkAlarms() {
             if (navigator.serviceWorker && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'ALARM_TRIGGERED',
-                    description: alarm.description
+                    description: alarm.description,
+                    soundType: alarm.soundType,
+                    soundUrl: alarm.sound
                 });
             }
         }
