@@ -23,6 +23,10 @@
                                 <input type="text" class="form-control" id="description" required placeholder="Enter alarm description">
                             </div>
                             <div class="mb-3">
+                                <label for="date" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="date" required min="{{ now.strftime('%Y-%m-%d') }}">
+                            </div>
+                            <div class="mb-3">
                                 <label for="time" class="form-label">Time (HH:MM)</label>
                                 <input type="time" class="form-control" id="time" required>
                             </div>
@@ -34,7 +38,13 @@
                             </div>
                             <div class="mb-3">
                                 <label for="soundFile" class="form-label">Upload New Sound</label>
-                                <input type="file" class="form-control" id="soundFile" accept=".wav,.mp3,.ogg">
+                                <div class="input-group">
+                                    <input type="file" class="form-control" id="soundFile" accept=".wav,.mp3,.ogg">
+                                    <button class="btn btn-outline-secondary" type="button" id="clearSound">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Supported formats: WAV, MP3, OGG</small>
                             </div>
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-plus"></i> Add Alarm

@@ -40,7 +40,7 @@ def index():
 
 @app.route('/app')
 def app_page():
-    return render_template('app.html')
+    return render_template('app.html', now=datetime.now())
 
 @app.route('/api/alarms', methods=['GET'])
 def get_alarms():

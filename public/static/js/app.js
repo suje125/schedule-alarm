@@ -11,7 +11,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize audio context
     function initAudio() {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
     }
 
     // Create a simple beep sound
@@ -38,6 +40,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 
+    // Request notification permission
+    async function requestNotificationPermission() {
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                showNotification('Notifications enabled!');
+            }
+        } catch (error) {
+            console.error('Error requesting notification permission:', error);
+        }
+    }
+
+    // Show browser notification
+    function showBrowserNotification(title, body) {
+        if (Notification.permission === 'granted') {
+            new Notification(title, {
+                body: body,
+                icon: '/static/images/icon.png'
+            });
+        }
+    }
+
     // Load existing alarms
     loadAlarms();
 
@@ -47,11 +71,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const description = document.getElementById('description').value;
         const time = document.getElementById('time').value;
+        const date = document.getElementById('date').value;
         const sound = document.getElementById('sound').value;
         
         const alarm = {
             description,
             time,
+            date,
             sound,
             active: true
         };
@@ -64,6 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show notification
         showNotification('Alarm added successfully!');
+        showBrowserNotification('Alarm Added', `Alarm set for ${date} at ${time}`);
         
         // Reload alarms
         loadAlarms();
@@ -73,9 +100,15 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('soundFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
-            // Here you would typically upload the file to the server
-            // and add it to the sound options
-            showNotification('Sound file selected: ' + file.name);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const soundOption = document.createElement('option');
+                soundOption.value = e.target.result;
+                soundOption.textContent = file.name;
+                document.getElementById('sound').appendChild(soundOption);
+                showNotification('Sound file added to options!');
+            };
+            reader.readAsDataURL(file);
         }
     });
 
@@ -83,6 +116,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(checkAlarms, 60000);
     // Initial check
     checkAlarms();
+    // Request notification permission
+    requestNotificationPermission();
 });
 
 function saveAlarm(alarm) {
@@ -103,12 +138,15 @@ function loadAlarms() {
         alarmElement.innerHTML = `
             <div>
                 <strong>${alarm.description}</strong><br>
+                <small>Date: ${alarm.date}</small><br>
                 <small>Time: ${alarm.time}</small>
             </div>
             <div>
-                <button class="btn btn-danger btn-sm" onclick="deleteAlarm(${index})">Delete</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteAlarm(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
                 <button class="btn btn-warning btn-sm" onclick="toggleAlarm(${index})">
-                    ${alarm.active ? 'Disable' : 'Enable'}
+                    <i class="fas ${alarm.active ? 'fa-bell' : 'fa-bell-slash'}"></i>
                 </button>
             </div>
         `;
@@ -132,13 +170,14 @@ function toggleAlarm(index) {
 
 function checkAlarms() {
     const now = new Date();
+    const currentDate = now.toISOString().split('T')[0];
     const currentTime = now.getHours().toString().padStart(2, '0') + ':' + 
                        now.getMinutes().toString().padStart(2, '0');
     
     const alarms = JSON.parse(localStorage.getItem('alarms') || '[]');
     
     alarms.forEach((alarm, index) => {
-        if (alarm.active && alarm.time === currentTime) {
+        if (alarm.active && alarm.date === currentDate && alarm.time === currentTime) {
             // Play sound
             if (!audioContext) {
                 initAudio();
@@ -146,8 +185,9 @@ function checkAlarms() {
             currentAlarmSound = createBeepSound();
             currentAlarmSound.start(0);
             
-            // Show notification
+            // Show notifications
             showNotification(`Alarm: ${alarm.description}`);
+            showBrowserNotification('Alarm', alarm.description);
             
             // Stop sound after 5 seconds
             setTimeout(() => {
