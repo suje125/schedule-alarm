@@ -157,8 +157,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const time = document.getElementById('time').value;
         const date = document.getElementById('date').value;
         const sound = document.getElementById('sound').value;
-        const repeat = document.getElementById('repeat').checked;
         const soundType = document.getElementById('soundType').value;
+        const repeatCheckbox = document.getElementById('repeat');
+        const repeat = repeatCheckbox ? repeatCheckbox.checked : false;
         
         const alarm = {
             description,
