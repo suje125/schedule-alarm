@@ -123,7 +123,7 @@ async function initializeApp() {
                 
                 <div class="mb-3 form-check">
                     <input type="checkbox" class="form-check-input" id="repeat">
-                    <label class="form-check-label" for="repeat">Repeat every 2 hours</label>
+                    <label class="form-check-label" for="repeat">Repeat every 10 minutes</label>
                 </div>
                 
                 <button type="submit" class="btn btn-primary">Set Alarm</button>
@@ -157,6 +157,7 @@ async function initializeApp() {
         let audioContext = null;
         let currentAlarmSound = null;
         let serviceWorkerRegistration = null;
+        let repeatAlarmInterval = null;
 
         // Create notification element
         const notification = document.createElement('div');
@@ -255,12 +256,46 @@ async function initializeApp() {
         // Request notification permission
         async function requestNotificationPermission() {
             try {
+                // Check if notifications are supported
+                if (!('Notification' in window)) {
+                    console.log('This browser does not support notifications');
+                    return;
+                }
+
+                // Check if permission is already granted
+                if (Notification.permission === 'granted') {
+                    console.log('Notification permission already granted');
+                    return;
+                }
+
+                // Check if permission is denied
+                if (Notification.permission === 'denied') {
+                    console.log('Notification permission denied');
+                    showNotification('Please enable notifications in your browser settings');
+                    return;
+                }
+
+                // Request permission
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
+                    console.log('Notification permission granted');
                     showNotification('Notifications enabled!');
+                } else {
+                    console.log('Notification permission denied');
+                    showNotification('Please enable notifications to receive alarm alerts');
                 }
             } catch (error) {
                 console.error('Error requesting notification permission:', error);
+            }
+        }
+
+        // Show notification
+        function showAlarmNotification(description) {
+            if (Notification.permission === 'granted') {
+                new Notification('Alarm', {
+                    body: description,
+                    icon: '/static/images/alarm-icon.png'
+                });
             }
         }
 
@@ -275,7 +310,7 @@ async function initializeApp() {
                     navigator.serviceWorker.addEventListener('message', (event) => {
                         if (event.data.type === 'ALARM_TRIGGERED') {
                             playAlarmSound(event.data.soundType, event.data.soundUrl);
-                            showNotification(`Alarm: ${event.data.description}`);
+                            showAlarmNotification(event.data.description);
                         }
                     });
                 }
@@ -380,6 +415,17 @@ async function initializeApp() {
                     elements.alarmForm.reset();
                     elements.customSoundContainer.style.display = 'none';
                     loadAlarms();
+
+                    // If repeat is enabled, set up the repeat interval
+                    if (repeat) {
+                        if (repeatAlarmInterval) {
+                            clearInterval(repeatAlarmInterval);
+                        }
+                        repeatAlarmInterval = setInterval(() => {
+                            playAlarmSound(soundType, alarm.sound);
+                            showAlarmNotification(description);
+                        }, 10 * 60 * 1000); // 10 minutes
+                    }
                 } else {
                     alert('Error adding alarm: ' + result.error);
                 }
@@ -407,7 +453,7 @@ async function initializeApp() {
                                 <small>${alarm.date} at ${alarm.time}</small>
                                 <br>
                                 <small>Sound: ${alarm.soundType}${alarm.sound ? ' - ' + alarm.sound : ''}</small>
-                                ${alarm.repeat ? '<br><small>Repeats every 2 hours</small>' : ''}
+                                ${alarm.repeat ? '<br><small>Repeats every 10 minutes</small>' : ''}
                             </div>
                             <button class="btn btn-danger btn-sm" onclick="deleteAlarm(${index})">Delete</button>
                         </div>
@@ -429,6 +475,11 @@ async function initializeApp() {
                 const result = await response.json();
                 if (result.message) {
                     loadAlarms();
+                    // Clear repeat interval if it exists
+                    if (repeatAlarmInterval) {
+                        clearInterval(repeatAlarmInterval);
+                        repeatAlarmInterval = null;
+                    }
                 } else {
                     alert('Error deleting alarm: ' + result.error);
                 }
@@ -442,14 +493,16 @@ async function initializeApp() {
         loadAlarms();
         requestNotificationPermission();
         registerServiceWorker();
+        
+        console.log('App initialization complete');
     } catch (error) {
         console.error('Error initializing app:', error);
         alert('Error initializing app. Please refresh the page.');
     }
 }
 
-// Start the app when DOM is ready
-domReady(initializeApp);
+// Start the app
+initializeApp();
 
 function saveAlarm(alarm) {
     let alarms = JSON.parse(localStorage.getItem('alarms') || '[]');
