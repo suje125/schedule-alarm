@@ -8,9 +8,9 @@
     "theme_color": "#0d6efd",
     "icons": [
         {
-            "src": "/static/images/icon.png",
+            "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzBkNmVmZCIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4em0uNS0xM0gxMXY2bDUgMgw1IDExaC0yVjloLTN2Nmgydi0yLjA3TDEyLjUgMTN6Ii8+PC9zdmc+",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/svg+xml"
         }
     ]
 } 

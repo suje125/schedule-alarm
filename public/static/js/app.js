@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const alarmForm = document.getElementById('alarmForm');
     const alarmsList = document.getElementById('alarmsList');
-    let audioContext;
+    let audioContext = null;
     let currentAlarmSound = null;
     let serviceWorkerRegistration;
 
@@ -12,24 +12,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize audio context
     function initAudio() {
-        if (!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return true;
+        } catch (error) {
+            console.error('Failed to initialize audio:', error);
+            showNotification('Audio not supported in this browser');
+            return false;
         }
     }
 
     // Create a simple beep sound
     function createBeepSound() {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+        if (!audioContext) {
+            if (!initAudio()) return null;
+        }
         
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.value = 800;
-        gainNode.gain.value = 0.5; // Increased volume
-        
-        return oscillator;
+        try {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 800;
+            gainNode.gain.value = 0.5;
+            
+            return oscillator;
+        } catch (error) {
+            console.error('Failed to create beep sound:', error);
+            return null;
+        }
     }
 
     // Show notification
@@ -78,18 +94,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Play alarm sound
     function playAlarmSound() {
         if (!audioContext) {
-            initAudio();
+            if (!initAudio()) return;
         }
-        currentAlarmSound = createBeepSound();
-        currentAlarmSound.start(0);
         
-        // Stop sound after 10 seconds
-        setTimeout(() => {
+        try {
+            currentAlarmSound = createBeepSound();
             if (currentAlarmSound) {
-                currentAlarmSound.stop();
-                currentAlarmSound = null;
+                currentAlarmSound.start(0);
+                
+                // Stop sound after 10 seconds
+                setTimeout(() => {
+                    if (currentAlarmSound) {
+                        currentAlarmSound.stop();
+                        currentAlarmSound = null;
+                    }
+                }, 10000);
             }
-        }, 10000);
+        } catch (error) {
+            console.error('Failed to play alarm sound:', error);
+            showNotification('Failed to play alarm sound');
+        }
     }
 
     // Load existing alarms

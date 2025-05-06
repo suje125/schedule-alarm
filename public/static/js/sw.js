@@ -18,7 +18,7 @@ self.addEventListener('message', (event) => {
                 // Show notification
                 self.registration.showNotification('Alarm', {
                     body: description,
-                    icon: '/static/images/icon.png',
+                    icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzBkNmVmZCIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4em0uNS0xM0gxMXY2bDUgMgw1IDExaC0yVjloLTN2Nmgydi0yLjA3TDEyLjUgMTN6Ii8+PC9zdmc+',
                     vibrate: [200, 100, 200, 100, 200],
                     requireInteraction: true
                 });
