@@ -1,28 +1,75 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Wait for DOM to be fully loaded
-    setTimeout(function() {
-        const alarmForm = document.getElementById('alarmForm');
-        const alarmsList = document.getElementById('alarmsList');
-        const soundTypeSelect = document.getElementById('soundType');
-        const customSoundContainer = document.getElementById('customSoundContainer');
-        const soundSelect = document.getElementById('sound');
-        const soundFileInput = document.getElementById('soundFile');
+// Function to check if DOM is ready
+function domReady(callback) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', callback);
+    } else {
+        callback();
+    }
+}
 
-        if (!alarmForm || !alarmsList || !soundTypeSelect || !customSoundContainer || !soundSelect || !soundFileInput) {
-            console.error('Required DOM elements not found. Please refresh the page.');
-            alert('Required elements not found. Please refresh the page.');
+// Function to get element with retry
+function getElementWithRetry(id, maxRetries = 5, delay = 100) {
+    return new Promise((resolve) => {
+        let retries = 0;
+        
+        function tryGetElement() {
+            const element = document.getElementById(id);
+            if (element) {
+                resolve(element);
+            } else if (retries < maxRetries) {
+                retries++;
+                setTimeout(tryGetElement, delay);
+            } else {
+                resolve(null);
+            }
+        }
+        
+        tryGetElement();
+    });
+}
+
+// Main initialization function
+async function initializeApp() {
+    try {
+        // Get all required elements with retry
+        const elements = {
+            alarmForm: await getElementWithRetry('alarmForm'),
+            alarmsList: await getElementWithRetry('alarmsList'),
+            soundTypeSelect: await getElementWithRetry('soundType'),
+            customSoundContainer: await getElementWithRetry('customSoundContainer'),
+            soundSelect: await getElementWithRetry('sound'),
+            soundFileInput: await getElementWithRetry('soundFile')
+        };
+
+        // Check if all elements exist
+        const missingElements = Object.entries(elements)
+            .filter(([_, element]) => !element)
+            .map(([name]) => name);
+
+        if (missingElements.length > 0) {
+            console.error('Missing elements:', missingElements);
+            alert('Some required elements are missing. Please refresh the page.');
             return;
         }
 
+        // Initialize variables
         let audioContext = null;
         let currentAlarmSound = null;
-        let serviceWorkerRegistration;
-        let repeatInterval = null;
+        let serviceWorkerRegistration = null;
 
         // Create notification element
         const notification = document.createElement('div');
         notification.className = 'notification';
         document.body.appendChild(notification);
+
+        // Show notification
+        function showNotification(message) {
+            notification.textContent = message;
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 5000);
+        }
 
         // Initialize audio context
         function initAudio() {
@@ -38,19 +85,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Create a sound based on type
+        // Create sound based on type
         function createSound(type, soundUrl) {
             if (!audioContext) {
                 if (!initAudio()) return null;
             }
-            
+
             try {
                 if (type === 'custom' && soundUrl) {
-                    // For custom sounds
                     const audio = new Audio(soundUrl);
                     return audio;
                 } else {
-                    // For built-in sounds
                     const oscillator = audioContext.createOscillator();
                     const gainNode = audioContext.createGain();
                     
@@ -58,7 +103,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     gainNode.connect(audioContext.destination);
                     
                     oscillator.type = 'sine';
-                    // Set frequency based on type
                     oscillator.frequency.value = type === 'deep' ? 200 : 800;
                     gainNode.gain.value = 0.5;
                     
@@ -75,16 +119,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!audioContext) {
                 if (!initAudio()) return;
             }
-            
+
             try {
                 currentAlarmSound = createSound(soundType, soundUrl);
                 if (currentAlarmSound) {
                     if (soundType === 'custom') {
-                        // For Audio objects
                         currentAlarmSound.loop = true;
                         currentAlarmSound.play();
                         
-                        // Stop sound after 10 seconds
                         setTimeout(() => {
                             if (currentAlarmSound) {
                                 currentAlarmSound.pause();
@@ -93,10 +135,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }, 10000);
                     } else {
-                        // For oscillator
                         currentAlarmSound.start(0);
                         
-                        // Stop sound after 10 seconds
                         setTimeout(() => {
                             if (currentAlarmSound) {
                                 currentAlarmSound.stop();
@@ -111,23 +151,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Show notification
-        function showNotification(message) {
-            notification.textContent = message;
-            notification.style.display = 'block';
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 5000);
-        }
-
         // Request notification permission
         async function requestNotificationPermission() {
             try {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
                     showNotification('Notifications enabled!');
-                } else {
-                    console.warn('Notification permission denied');
                 }
             } catch (error) {
                 console.error('Error requesting notification permission:', error);
@@ -141,45 +170,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', {
                         scope: '/'
                     });
-                    console.log('ServiceWorker registration successful with scope:', serviceWorkerRegistration.scope);
                     
-                    // Listen for service worker messages
                     navigator.serviceWorker.addEventListener('message', (event) => {
-                        console.log('Received message from service worker:', event.data);
                         if (event.data.type === 'ALARM_TRIGGERED') {
                             playAlarmSound(event.data.soundType, event.data.soundUrl);
                             showNotification(`Alarm: ${event.data.description}`);
                         }
                     });
-                } else {
-                    console.warn('Service workers are not supported');
                 }
             } catch (error) {
                 console.error('Service Worker registration failed:', error);
             }
         }
 
-        // Show/hide custom sound options based on sound type
-        soundTypeSelect.addEventListener('change', function() {
-            customSoundContainer.style.display = this.value === 'custom' ? 'block' : 'none';
+        // Show/hide custom sound options
+        elements.soundTypeSelect.addEventListener('change', function() {
+            elements.customSoundContainer.style.display = this.value === 'custom' ? 'block' : 'none';
         });
 
         // Load sounds when custom sound is selected
-        soundTypeSelect.addEventListener('change', async function() {
+        elements.soundTypeSelect.addEventListener('change', async function() {
             if (this.value === 'custom') {
                 try {
                     const response = await fetch('/api/sounds');
                     const sounds = await response.json();
                     
-                    // Clear existing options
-                    soundSelect.innerHTML = '<option value="">Select a sound</option>';
-                    
-                    // Add new options
+                    elements.soundSelect.innerHTML = '<option value="">Select a sound</option>';
                     sounds.forEach(sound => {
                         const option = document.createElement('option');
                         option.value = sound;
                         option.textContent = sound;
-                        soundSelect.appendChild(option);
+                        elements.soundSelect.appendChild(option);
                     });
                 } catch (error) {
                     console.error('Error loading sounds:', error);
@@ -188,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Handle sound file upload
-        soundFileInput.addEventListener('change', async function() {
+        elements.soundFileInput.addEventListener('change', async function() {
             if (this.files.length > 0) {
                 const formData = new FormData();
                 formData.append('sound', this.files[0]);
@@ -201,21 +222,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     const result = await response.json();
                     if (result.message) {
-                        // Reload sounds after upload
                         const soundsResponse = await fetch('/api/sounds');
                         const sounds = await soundsResponse.json();
                         
-                        // Update sound select
-                        soundSelect.innerHTML = '<option value="">Select a sound</option>';
+                        elements.soundSelect.innerHTML = '<option value="">Select a sound</option>';
                         sounds.forEach(sound => {
                             const option = document.createElement('option');
                             option.value = sound;
                             option.textContent = sound;
-                            soundSelect.appendChild(option);
+                            elements.soundSelect.appendChild(option);
                         });
                         
-                        // Select the newly uploaded sound
-                        soundSelect.value = result.filename;
+                        elements.soundSelect.value = result.filename;
                     }
                 } catch (error) {
                     console.error('Error uploading sound:', error);
@@ -224,34 +242,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Handle form submission
-        alarmForm.addEventListener('submit', async function(e) {
+        elements.alarmForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Get form values
             const description = document.getElementById('description').value;
             const date = document.getElementById('date').value;
             const time = document.getElementById('time').value;
-            const soundType = soundTypeSelect.value;
+            const soundType = elements.soundTypeSelect.value;
             const repeat = document.getElementById('repeat').checked;
             
-            // Validate form
             if (!description || !date || !time) {
                 alert('Please fill in all required fields');
                 return;
             }
             
-            // Create alarm object
             const alarm = {
                 description,
                 date,
                 time,
                 soundType,
                 repeat,
-                sound: soundType === 'custom' ? soundSelect.value : null
+                sound: soundType === 'custom' ? elements.soundSelect.value : null
             };
             
             try {
-                // Send alarm to server
                 const response = await fetch('/api/alarms', {
                     method: 'POST',
                     headers: {
@@ -262,11 +276,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const result = await response.json();
                 if (result.message) {
-                    // Clear form
-                    alarmForm.reset();
-                    customSoundContainer.style.display = 'none';
-                    
-                    // Reload alarms
+                    elements.alarmForm.reset();
+                    elements.customSoundContainer.style.display = 'none';
                     loadAlarms();
                 } else {
                     alert('Error adding alarm: ' + result.error);
@@ -283,10 +294,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch('/api/alarms');
                 const alarms = await response.json();
                 
-                // Clear existing alarms
-                alarmsList.innerHTML = '';
+                elements.alarmsList.innerHTML = '';
                 
-                // Add each alarm to the list
                 alarms.forEach((alarm, index) => {
                     const alarmElement = document.createElement('div');
                     alarmElement.className = 'list-group-item';
@@ -302,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <button class="btn btn-danger btn-sm" onclick="deleteAlarm(${index})">Delete</button>
                         </div>
                     `;
-                    alarmsList.appendChild(alarmElement);
+                    elements.alarmsList.appendChild(alarmElement);
                 });
             } catch (error) {
                 console.error('Error loading alarms:', error);
@@ -318,7 +327,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const result = await response.json();
                 if (result.message) {
-                    // Reload alarms
                     loadAlarms();
                 } else {
                     alert('Error deleting alarm: ' + result.error);
@@ -329,14 +337,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Load alarms when page loads
+        // Initialize
         loadAlarms();
-        // Request notification permission
         requestNotificationPermission();
-        // Register service worker
         registerServiceWorker();
-    }, 100); // Small delay to ensure DOM is fully loaded
-});
+    } catch (error) {
+        console.error('Error initializing app:', error);
+        alert('Error initializing app. Please refresh the page.');
+    }
+}
+
+// Start the app when DOM is ready
+domReady(initializeApp);
 
 function saveAlarm(alarm) {
     let alarms = JSON.parse(localStorage.getItem('alarms') || '[]');
